@@ -50,7 +50,7 @@ class ForrestServiceProvider extends ServiceProvider {
 			        $authentication = new \Omniphx\Forrest\AuthenticationFlows\UserAgent();
 			        break;
 			    case 'UsernamePassword':
-			        $authentication = new \Omniphx\Forrest\AuthenticationFlows\UsernamePassword();
+			        $authentication = new \Omniphx\Forrest\AuthenticationFlows\UsernamePassword($client, $settings);
 			        break;
 			}
 
