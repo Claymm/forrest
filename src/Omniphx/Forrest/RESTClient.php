@@ -135,10 +135,13 @@ class RESTClient {
      */
     public function refresh()
     {
-        $response = $this->authentication->authenticate();
+        $refreshToken = $this->session->getRefreshToken();
+
+        $response = $this->authentication->refresh($refreshToken);
+
         $jsonResponse = $response->json();
+
         $this->session->putToken($jsonResponse);
-        $this->putResources();
 
         return $this->session->getToken();
     }
