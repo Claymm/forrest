@@ -37,10 +37,10 @@ class ForrestServiceProvider extends ServiceProvider {
 
 			$client   = new \GuzzleHttp\Client();
 			$redirect = new \Omniphx\Forrest\Providers\Laravel\LaravelRedirect();
-			$session  = new \Omniphx\Forrest\Providers\Laravel\LaravelSession();
+			$storage  = new \Omniphx\Forrest\Providers\Laravel\LaravelSession();
 			$input    = new \Omniphx\Forrest\Providers\Laravel\LaravelInput();
 
-			$resource = new \Omniphx\Forrest\Resource($client, $session, $settings['defaults']);
+			
 
 			switch ($settings['authenticationFlow']) {
 			    case 'WebServer':
@@ -50,11 +50,14 @@ class ForrestServiceProvider extends ServiceProvider {
 			        $authentication = new \Omniphx\Forrest\AuthenticationFlows\UserAgent();
 			        break;
 			    case 'UsernamePassword':
-			        $authentication = new \Omniphx\Forrest\AuthenticationFlows\UsernamePassword();
+			        $authentication = new \Omniphx\Forrest\AuthenticationFlows\UsernamePassword($client, $settings);
+			        $storage  = new \Omniphx\Forrest\Providers\Laravel\LaravelCache();
 			        break;
 			}
 
-			return new RESTClient($resource, $client, $session, $redirect, $authentication, $settings);
+			$resource = new \Omniphx\Forrest\Resource($client, $storage, $settings['defaults']);
+
+			return new RESTClient($resource, $client, $storage, $redirect, $authentication, $settings);
 		});
 	}
 

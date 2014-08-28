@@ -1,7 +1,7 @@
 <?php namespace Omniphx\Forrest;
 
 use GuzzleHttp\ClientInterface;
-use Omniphx\Forrest\Interfaces\SessionInterface;
+use Omniphx\Forrest\Interfaces\StorageInterface;
 use Omniphx\Forrest\Interfaces\RedirectInterface;
 use Omniphx\Forrest\Interfaces\ResourceInterface;
 use Omniphx\Forrest\Interfaces\AuthenticationInterface;
@@ -23,10 +23,10 @@ class RESTClient {
     protected $client;
 
     /**
-     * Interface for Session calls
-     * @var Omniphx\Forrest\Interfaces\SessionInterface
+     * Interface for Storage calls
+     * @var Omniphx\Forrest\Interfaces\StorageInterface
      */
-    protected $session;
+    protected $storage;
 
 
     /**
@@ -50,14 +50,14 @@ class RESTClient {
     public function __construct(
         ResourceInterface $resource,
         ClientInterface $client,
-        SessionInterface $session,
+        StorageInterface $storage,
         RedirectInterface $redirect,
         AuthenticationInterface $authentication,
         $settings)
     {
         $this->resource       = $resource;
         $this->client         = $client;
-        $this->session        = $session;
+        $this->storage        = $storage;
         $this->redirect       = $redirect;
         $this->authentication = $authentication;
         $this->settings       = $settings;
@@ -70,7 +70,7 @@ class RESTClient {
     private function getToken()
     {
         try {
-            return $this->session->getToken();
+            return $this->storage->getToken();
         } catch (MissingTokenException $e) {
             return $this->refresh();
         }
@@ -118,11 +118,11 @@ class RESTClient {
         // Response returns an json of access_token, instance_url, id, issued_at, and signature.
         $jsonResponse = $response->json();
 
-        // Encypt token and store token and in session.
-        $this->session->putToken($jsonResponse);
-        $this->session->putRefreshToken($jsonResponse['refresh_token']);
+        // Encypt token and store token and in storage.
+        $this->storage->putToken($jsonResponse);
+        $this->storage->putRefreshToken($jsonResponse['refresh_token']);
 
-        // Store resources into the session.
+        // Store resources into the storage.
         $this->putResources();
 
         //Redirect to user's homepage. Can change this in Oauth settings config.
@@ -135,19 +135,27 @@ class RESTClient {
      */
     public function refresh()
     {
-        $refreshToken = $this->session->getRefreshToken();
-
-        $response = $this->authentication->refresh($refreshToken);
-
-        $jsonResponse = $response->json();
-
-        $this->session->putToken($jsonResponse);
-
-        return $this->session->getToken();
+        // if the UsernamePassword Flow is being used, dont refresh, reauthenticate
+        if($this->settings['authenticationFlow'] == 'UsernamePassword')
+        {
+            $response = $this->authentication->authenticate();
+            $jsonResponse = $response->json();
+            
+            $this->storage->putToken($jsonResponse);
+            $this->putResources();
+        }
+        else
+        {
+            $refreshToken = $this->storage->getRefreshToken();
+            $response = $this->authentication->refresh($refreshToken);
+            $jsonResponse = $response->json();
+            $this->storage->putToken($jsonResponse);   
+        }
+        return $this->storage->getToken();
     }
 
     /**
-     * Revokes access token from Salesforce. Will not flush token from Session.
+     * Revokes access token from Salesforce. Will not flush token from Storage.
      * @return RedirectInterface
      */
     public function revoke()
@@ -194,7 +202,7 @@ class RESTClient {
     public function resources($options = [])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('version')['url'];
+        $url .= $this->storage->get('version')['url'];
 
         $resources = $this->request($url, $options);
 
@@ -229,7 +237,7 @@ class RESTClient {
     public function limits($options =[])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('version')['url'];
+        $url .= $this->storage->get('version')['url'];
         $url .= '/limits';
 
         $limits = $this->request($url, $options);
@@ -244,7 +252,7 @@ class RESTClient {
     public function describe($options =[])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('version')['url'];
+        $url .= $this->storage->get('version')['url'];
         $url .= '/sobjects';
 
         $describe = $this->request($url, $options);
@@ -261,7 +269,7 @@ class RESTClient {
     public function query($query, $options = [])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('resources')['query'];
+        $url .= $this->storage->get('resources')['query'];
         $url .= '?q=';
         $url .= urlencode($query);
 
@@ -280,7 +288,7 @@ class RESTClient {
     public function queryExplain($query, $options = [])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('resources')['query'];
+        $url .= $this->storage->get('resources')['query'];
         $url .= '?explain=';
         $url .= urlencode($query);
 
@@ -300,7 +308,7 @@ class RESTClient {
     public function queryAll($query,$options = [])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('resources')['queryAll'];
+        $url .= $this->storage->get('resources')['queryAll'];
         $url .= '?q=';
         $url .= urlencode($query);
 
@@ -318,7 +326,7 @@ class RESTClient {
     public function search($query,$options = [])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('resources')['search'];
+        $url .= $this->storage->get('resources')['search'];
         $url .= '?q=';
         $url .= urlencode($query);
 
@@ -339,7 +347,7 @@ class RESTClient {
     public function scopeOrder($options = [])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('resources')['search'];
+        $url .= $this->storage->get('resources')['search'];
         $url .= '/scopeOrder';
 
         $scopeOrder = $this->request($url, $options);
@@ -356,7 +364,7 @@ class RESTClient {
     public function searchLayouts($objectList,$options = [])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('resources')['search'];
+        $url .= $this->storage->get('resources')['search'];
         $url .= '/layout/?q=';
         $url .= urlencode($objectList);
 
@@ -378,7 +386,7 @@ class RESTClient {
     public function suggestedArticles($query,$options = [])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('resources')['search'];
+        $url .= $this->storage->get('resources')['search'];
         $url .= '/suggestTitleMatches?q=';
         $url .= urlencode($query);
 
@@ -417,7 +425,7 @@ class RESTClient {
     public function suggestedQueries($query,$options = [])
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('resources')['search'];
+        $url .= $this->storage->get('resources')['search'];
         $url .= '/suggestSearchQueries?q=';
         $url .= urlencode($query);
 
@@ -443,7 +451,7 @@ class RESTClient {
      * Returns any resource that is available to the authenticated
      * user. Reference Force.com's REST API guide to read about more
      * methods that can be called or refence them by calling the
-     * Session::get('resources') method.
+     * storage get('resources') method.
      * @param  string $name
      * @param  array $arguments
      * @return array
@@ -451,7 +459,7 @@ class RESTClient {
     public function __call($name,$arguments)
     {
         $url  = $this->getToken()['instance_url'];
-        $url .= $this->session->get('resources')[$name];
+        $url .= $this->storage->get('resources')[$name];
 
         $options = [];
 
@@ -480,8 +488,8 @@ class RESTClient {
     /**
      * Checks to see if version is specified in configuration and if not then
      * assign the latest version number availabe to the user's instance.
-     * Once a version number is determined, it will be stored in the user's
-     * session with the 'version' key.
+     * Once a version number is determined, it will be stored in the storage
+     * with the 'version' key.
      * @return void
      */
     private function putVersion()
@@ -492,14 +500,14 @@ class RESTClient {
             $versions = $this->versions();
             foreach ($versions as $version) {
                 if ($version['version'] == $configVersion){
-                    $this->session->put('version',$version);
+                    $this->storage->put('version',$version);
                 }
             }
         }
         else {
             $versions = $this->versions();
             $lastestVersion = end($versions);
-            $this->session->put('version', $lastestVersion);
+            $this->storage->put('version', $lastestVersion);
         }
     }
 
@@ -512,12 +520,12 @@ class RESTClient {
     private function putResources()
     {
         try {
-            $version = $this->session->get('version');
+            $version = $this->storage->get('version');
         }
         catch (\Exception $e) {
             $this->putVersion();
             $resources = $this->resources();
-            $this->session->put('resources', $resources);
+            $this->storage->put('resources', $resources);
         }
     }
 
