@@ -84,8 +84,9 @@ class RESTClient {
      */
     private function request($url, $options)
     {
+        $queryResults = false;
         try {
-            $queryResults = $this->resource->request($url, $options);;
+            $queryResults = $this->resource->request($url, $options);
         } catch (ClientException $e) {
             if ($e->hasResponse() && $e->getResponse()->getStatusCode() == '401') {
                 $this->refresh();
