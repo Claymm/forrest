@@ -3,10 +3,10 @@
 use GuzzleHttp\ClientInterface;
 use Omniphx\Forrest\Interfaces\RedirectInterface;
 use Omniphx\Forrest\Interfaces\InputInterface;
-use Omniphx\Forrest\Interfaces\AuthenticationInterface;
+use Omniphx\Forrest\Interfaces\CallbackAuthenticationInterface;
 use GuzzleHttp\Exception\RequestException;
 
-class WebServer implements AuthenticationInterface {
+class WebServer implements CallbackAuthenticationInterface {
 
     /**
      * Interface for HTTP Client

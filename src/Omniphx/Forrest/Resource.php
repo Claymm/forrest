@@ -2,7 +2,7 @@
 
 use Omniphx\Forrest\Interfaces\ResourceInterface;
 use GuzzleHttp\ClientInterface;
-use Omniphx\Forrest\Interfaces\SessionInterface;
+use Omniphx\Forrest\Interfaces\StorageInterface;
 use Omniphx\Forrest\Exceptions\MissingTokenException;
 
 class Resource implements ResourceInterface {
@@ -14,10 +14,10 @@ class Resource implements ResourceInterface {
     protected $client;
 
     /**
-     * Interface for Session calls
-     * @var Omniphx\Forrest\Interfaces\SessionInterface
+     * Interface for Storage calls
+     * @var Omniphx\Forrest\Interfaces\StorageInterface
      */
-    protected $session;
+    protected $storage;
 
     /**
      * Default settings for the resource request
@@ -28,13 +28,13 @@ class Resource implements ResourceInterface {
     /**
      * Constructor
      * @param ClientInterface  $client   HTTP Request client
-     * @param SessionInterface $session  Session handler
+     * @param StorageInterface $storage  Storage handler
      * @param array            $defaults Config defaults
      */
-    public function __construct(ClientInterface $client, SessionInterface $session, array $defaults)
+    public function __construct(ClientInterface $client, StorageInterface $storage, array $defaults)
     {
 		$this->client   = $client;
-		$this->session  = $session;
+		$this->storage  = $storage;
         $this->defaults = $defaults;
 	}
 
@@ -73,7 +73,7 @@ class Resource implements ResourceInterface {
     {
         $format = $options['format'];
 
-        $accessToken = $this->session->getToken()['access_token'];
+        $accessToken = $this->storage->getToken()['access_token'];
         $headers['Authorization'] = "OAuth $accessToken";
 
         if ($format == 'json') {
